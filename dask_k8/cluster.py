@@ -42,29 +42,32 @@ class DaskCluster:
         v1 = kube_client.CoreV1Api()
         apps_v1 = kube_client.AppsV1Api()
 
-        # Services to be accessed outside of the cluster
+        #Services to be accessed outside of the cluster
         service_scheduler = kube_client.V1Service(api_version="v1", kind="Service",
                                                   metadata=kube_client.V1ObjectMeta(name=self.name_scheduler_service),
-                                                  spec=kube_client.V1ServiceSpec(type="NodePort",
+                                                  spec=kube_client.V1ServiceSpec(type="LoadBalancer",
                                                                                  ports=[kube_client.V1ServicePort(
                                                                                      port=8786)],
                                                                                  selector={"app": "dask-scheduler",
                                                                                            "user": self.cluster_id}
                                                                                  ))
+
         service_scheduler_dashboard = kube_client.V1Service(api_version="v1", kind="Service",
-                                                            metadata=kube_client.V1ObjectMeta(
-                                                                name=self.name_scheduler_dashboard_service),
-                                                            spec=kube_client.V1ServiceSpec(type="NodePort", ports=[
-                                                                kube_client.V1ServicePort(port=8787)],
-                                                                                           selector={
-                                                                                               "app": "dask-scheduler",
-                                                                                               "user": self.cluster_id}
-                                                                                           ))
+                                                            metadata=kube_client.V1ObjectMeta(name=self.name_scheduler_dashboard_service),
+                                                            spec=kube_client.V1ServiceSpec(type="LoadBalancer",
+                                                                                ports=[kube_client.V1ServicePort(
+                                                                                    port=8787)],
+                                                                                selector={"app": "dask-scheduler",
+                                                                                          "user": self.cluster_id}
+                                                                                ))
+
         # Start the services
         service_scheduler_created = v1.create_namespaced_service(self.namespace, service_scheduler, pretty=True)
         service_scheduler_dashboard_created = v1.create_namespaced_service(self.namespace, service_scheduler_dashboard,
                                                                            pretty=True)
         dask_scheduler_ip_port_internal = f"{service_scheduler_created.spec.cluster_ip}:{service_scheduler_created.spec.ports[0].port}"
+        dask_scheduler_dashboard_external_port = f"{service_scheduler_dashboard_created.spec.cluster_ip}:{service_scheduler_dashboard_created.spec.ports[0].port}"
+
         dask_scheduler_external_port = service_scheduler_created.spec.ports[0].node_port
         dask_scheduler_dashboard_external_port = service_scheduler_dashboard_created.spec.ports[0].node_port
 
@@ -107,17 +110,33 @@ class DaskCluster:
 
         # Get the host IP of the scheduler
         v1 = kube_client.CoreV1Api()
+        dask_scheduler_external_ip = 'None'
         while True:
-            dask_scheduler_external_ip = v1.list_namespaced_pod(self.namespace,
-                                                                label_selector=f"user={self.cluster_id},app=dask-scheduler"
-                                                                ).items[0].status.host_ip
+            dask_scheduler_service_lb = v1.list_service_for_all_namespaces(field_selector='metadata.name=' + self.name_scheduler_service).items[0].status.load_balancer
+            if dask_scheduler_service_lb.ingress is not None:
+                dask_scheduler_external_ip = dask_scheduler_service_lb.ingress[0].ip
             if dask_scheduler_external_ip is not None:
-                break
+                if dask_scheduler_external_ip != 'None':
+                    break
+            #TODO: Add an exit condition based on the time (e.g., 10 minutes)
             sleep(2)
 
         self._initialized = True
-        self._scheduler = f"tcp://{dask_scheduler_external_ip}:{dask_scheduler_external_port}"
-        self._dashboard = f"http://{dask_scheduler_external_ip}:{dask_scheduler_dashboard_external_port}"
+        self._scheduler = f"tcp://{dask_scheduler_external_ip}:8786"
+
+        # Get the host IP of the scheduler_dashboard
+        dask_scheduler_dashboard_external_ip = 'None'
+        while True:
+            dask_scheduler_dashboard_service_lb = v1.list_service_for_all_namespaces(field_selector='metadata.name=' + self.name_scheduler_dashboard_service).items[0].status.load_balancer
+            if dask_scheduler_dashboard_service_lb.ingress is not None:
+                dask_scheduler_dashboard_external_ip = dask_scheduler_dashboard_service_lb.ingress[0].ip
+            if dask_scheduler_dashboard_external_ip is not None:
+               if dask_scheduler_dashboard_external_ip != 'None':
+                break
+            #TODO: Add an exit condition based on the time (e.g., 10 minutes)
+            sleep(2)
+
+        self._dashboard = f"http://{dask_scheduler_dashboard_external_ip}:8787"
 
         print(f"Scheduler: {self._scheduler}")
         print(f"Dashboard: {self._dashboard}")

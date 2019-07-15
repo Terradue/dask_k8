@@ -12,14 +12,14 @@ scheduler_pod_spec_yaml = """
         - containerPort: 8786
       resources:
         requests:
-          cpu: 1
-          memory: 4G
+          cpu: 300m
+          memory: 1G
 """
 
 worker_pod_spec_yaml = """
   containers:
     - image: daskdev/dask:1.2.0
-      args: [dask-worker, $(DASK_SCHEDULER_ADDRESS), --nthreads, '1', --no-bokeh, --memory-limit, 4GB, --death-timeout, '60']
+      args: [dask-worker, $(DASK_SCHEDULER_ADDRESS), --nthreads, '1', --no-bokeh, --memory-limit, 1GB, --death-timeout, '60']
       imagePullPolicy: Always
       name: dask-worker
       env:
@@ -34,12 +34,12 @@ worker_pod_spec_yaml = """
         - name: EXTRA_PIP_PACKAGES
           value: s3fs
         - name: EXTRA_CONDA_PACKAGES
-          value: 
+          value:
       resources:
         requests:
-          cpu: 1
-          memory: "4G"
+          cpu: 300m
+          memory: "2G"
         limits:
-          cpu: 1
-          memory: "4G"
+          cpu: 300m
+          memory: "2G"
 """
