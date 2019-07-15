@@ -21,14 +21,14 @@ pip install git+https://github.com/Terradue/dask_k8.git
 from dask_k8 import DaskCluster
 
 # Use a kubernetes namespace where you have the proper rights, the cluster_id is to distinguish between possible different clusters
-cluster = DaskCluster(namespace="dhlab", cluster_id="seguin-0")
+cluster = DaskCluster(namespace="namespace_ID", cluster_id="cluster_ID")
 
 # Initialize cluster
 cluster.create()
 # Get a dask.distributed.Client
 dask_client = cluster.make_dask_client()
 # Increase/decrease the number of workers
-cluster.scale(40, blocking=True)  # Will block until all the workers are effectively connected to the scheduler
+cluster.scale(2, blocking=True)  # Will block until all the workers are effectively connected to the scheduler
 
 # Do the computation
 dask_client.compute(...)
@@ -43,11 +43,11 @@ from dask_k8 import DaskCluster
 from dask.diagnostics import progress
 from dask.distributed import wait
 
-cluster = DaskCluster(namespace="dhlab", cluster_id="seguin-0")
+cluster = DaskCluster(namespace="namespace_ID", cluster_id="cluster_ID")
 
 with cluster:
     dask_client = cluster.make_dask_client()  # Waits for the scheduler to be started
-    cluster.scale(40)  # Waits for the workers to be started
+    cluster.scale(2)  # Waits for the workers to be started
     # Compute
     dask_client.compute(..., sync=True)
     # Or
@@ -58,18 +58,12 @@ with cluster:
 
 The corresponding output is:
 ```
-Scheduler: tcp://10.90.47.7:31791
-Dashboard: http://10.90.47.7:7062
-Could not connect to scheduler, retrying...
-Could not connect to scheduler, retrying...
-Currently 0 workers out of the 40 required, waiting...
-Currently 13 workers out of the 40 required, waiting...
-Currently 21 workers out of the 40 required, waiting...
-Currently 32 workers out of the 40 required, waiting...
-Currently 33 workers out of the 40 required, waiting...
-Currently 33 workers out of the 40 required, waiting...
-Currently 34 workers out of the 40 required, waiting...
-Reached the desired 40 workers!
+Scheduler: tcp://LoadBalancer_PUBLIC_IP:8786
+Dashboard: http://LoadBalancer_PUBLICIP:8787
+Currently 0 workers out of the 2 required, waiting...
+Currently 0 workers out of the 2 required, waiting...
+Currently 0 workers out of the 2 required, waiting...
+Reached the desired 2 workers!
 ```
 
 ### Specifying the workers/scheduler specifications
@@ -78,10 +72,10 @@ Arbitrary pod specification can be given both for the scheduler and the worker.
 ```python
 from dask_k8 import DaskCluster
 
-cluster = DaskCluster(namespace="dhlab", cluster_id="seguin-0", worker_pod_spec="""
+cluster = DaskCluster(namespace="namespace_ID", cluster_id="cluster_ID", worker_pod_spec="""
   containers:
     - image: daskdev/dask:latest
-      args: [dask-worker, $(DASK_SCHEDULER_ADDRESS), --nthreads, '1', --no-bokeh, --memory-limit, 4GB, --death-timeout, '60']
+      args: [dask-worker, $(DASK_SCHEDULER_ADDRESS), --nthreads, '1', --no-bokeh, --memory-limit, 1GB, --death-timeout, '60']
       imagePullPolicy: Always
       name: dask-worker
       env:
@@ -99,11 +93,11 @@ cluster = DaskCluster(namespace="dhlab", cluster_id="seguin-0", worker_pod_spec=
           value: 
       resources:
         requests:
-          cpu: 1
-          memory: "4G"
+          cpu: 300m
+          memory: "1G"
         limits:
-          cpu: 1
-          memory: "4G"
+          cpu: 300m
+          memory: "1G"
 """)
 ```
 
