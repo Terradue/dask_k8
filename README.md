@@ -12,7 +12,7 @@ First ensure you have proper Kubernetes access, try running `kubectl get pods` f
 ### Installation
 
 ```
-pip install git+https://github.com/SeguinBe/dask_k8.git
+pip install git+https://github.com/Terradue/dask_k8.git
 ```
 
 ### Example usage
