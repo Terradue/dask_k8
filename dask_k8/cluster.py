@@ -110,14 +110,13 @@ class DaskCluster:
 
         # Get the host IP of the scheduler
         v1 = kube_client.CoreV1Api()
-        dask_scheduler_external_ip = 'None'
+        dask_scheduler_external_ip = None
         while True:
             dask_scheduler_service_lb = v1.list_service_for_all_namespaces(field_selector='metadata.name=' + self.name_scheduler_service).items[0].status.load_balancer
             if dask_scheduler_service_lb.ingress is not None:
                 dask_scheduler_external_ip = dask_scheduler_service_lb.ingress[0].ip
             if dask_scheduler_external_ip is not None:
-                if dask_scheduler_external_ip != 'None':
-                    break
+                break
             #TODO: Add an exit condition based on the time (e.g., 10 minutes)
             sleep(2)
 
@@ -125,13 +124,12 @@ class DaskCluster:
         self._scheduler = f"tcp://{dask_scheduler_external_ip}:8786"
 
         # Get the host IP of the scheduler_dashboard
-        dask_scheduler_dashboard_external_ip = 'None'
+        dask_scheduler_dashboard_external_ip = None
         while True:
             dask_scheduler_dashboard_service_lb = v1.list_service_for_all_namespaces(field_selector='metadata.name=' + self.name_scheduler_dashboard_service).items[0].status.load_balancer
             if dask_scheduler_dashboard_service_lb.ingress is not None:
                 dask_scheduler_dashboard_external_ip = dask_scheduler_dashboard_service_lb.ingress[0].ip
             if dask_scheduler_dashboard_external_ip is not None:
-               if dask_scheduler_dashboard_external_ip != 'None':
                 break
             #TODO: Add an exit condition based on the time (e.g., 10 minutes)
             sleep(2)
